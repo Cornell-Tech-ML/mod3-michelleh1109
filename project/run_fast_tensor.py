@@ -6,6 +6,7 @@ import minitorch
 
 datasets = minitorch.datasets
 FastTensorBackend = minitorch.TensorBackend(minitorch.FastOps)
+
 if numba.cuda.is_available():
     GPUBackend = minitorch.TensorBackend(minitorch.CudaOps)
 
@@ -30,7 +31,9 @@ class Network(minitorch.Module):
 
     def forward(self, x):
         # TODO: Implement for Task 3.5.
-        raise NotImplementedError("Need to implement for Task 3.5")
+        middle = self.layer1.forward(x).relu()
+        end = self.layer2.forward(middle).relu()
+        return self.layer3.forward(end).sigmoid()
 
 
 class Linear(minitorch.Module):
@@ -42,10 +45,14 @@ class Linear(minitorch.Module):
         self.bias = minitorch.Parameter(s)
         self.out_size = out_size
 
-    def forward(self, x):
-        # TODO: Implement for Task 3.5.
-        raise NotImplementedError("Need to implement for Task 3.5")
+    def forward(self, x):   
+        batch = x.shape[0]
+        input = x.shape[1]
+        return (x.MatMul(x, self.weights.value) + self.bias.value.view(self.out_size))
 
+        # return (self.weights.value.view(1, input, self.out_size)
+        # * x.view(batch, input, 1)
+        # ).sum(1).view(batch, self.out_size) + self.bias.value.view(self.out_size)
 
 class FastTrain:
     def __init__(self, hidden_layers, backend=FastTensorBackend):
