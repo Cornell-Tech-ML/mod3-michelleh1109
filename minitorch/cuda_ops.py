@@ -497,64 +497,136 @@ def _tensor_matrix_multiply(
     j = cuda.blockIdx.y * cuda.blockDim.y + cuda.threadIdx.y
 
     # The local position in the block.
-    pi = cuda.threadIdx.x
-    pj = cuda.threadIdx.y
+    # pi = cuda.threadIdx.x
+    # pj = cuda.threadIdx.y
 
-    # Code Plan:
-    # 1) Move across shared dimension by block dim.
-    #    a) Copy into shared memory for a matrix.
-    #    b) Copy into shared memory for b matrix
-    #    c) Compute the dot produce for position c[i, j]
+    # # Code Plan:
+    # # 1) Move across shared dimension by block dim.
+    # #    a) Copy into shared memory for a matrix.
+    # #    b) Copy into shared memory for b matrix
+    # #    c) Compute the dot produce for position c[i, j]
 
-    # broadcasting for batch
-    if a_batch_stride > 1:
-        a_pos = batch * a_batch_stride + i * a_strides[-2] + pi * a_strides[-1]
-    else:
-        a_pos = i * a_strides[-2] + pi * a_strides[-1]
+    # # broadcasting for batch
+    # if a_batch_stride > 1:
+    #     a_pos = batch * a_batch_stride + i * a_strides[-2] + pi * a_strides[-1]
+    # else:
+    #     a_pos = i * a_strides[-2] + pi * a_strides[-1]
 
-    # load a[i, k] into shared memory if within bounds
-    if pi < a_shape[-1] and i < a_shape[-2]:
-        a_shared[pi, pj] = a_storage[a_pos]
-    else:
-        a_shared[pi, pj] = 0.0
+    # # load a[i, k] into shared memory if within bounds
+    # if pi < a_shape[-1] and i < a_shape[-2]:
+    #     a_shared[pi, pj] = a_storage[a_pos]
+    # else:
+    #     a_shared[pi, pj] = 0.0
 
-    # repeat with matrix b
-    if b_batch_stride > 1:  # if more than one batch
-        b_pos = batch * b_batch_stride + pj * b_strides[-2] + j * b_strides[-1]
-    else:
-        b_pos = pj * b_strides[-2] + j * b_strides[-1]
+    # # repeat with matrix b
+    # if b_batch_stride > 1:  # if more than one batch
+    #     b_pos = batch * b_batch_stride + pj * b_strides[-2] + j * b_strides[-1]
+    # else:
+    #     b_pos = pj * b_strides[-2] + j * b_strides[-1]
 
-    if pj < b_shape[-1] and j < b_shape[-2]:
-        b_shared[pi, pj] = b_storage[b_pos]
-    else:
-        b_shared[pi, pj] = 0.0
+    # if pj < b_shape[-1] and j < b_shape[-2]:
+    #     b_shared[pi, pj] = b_storage[b_pos]
+    # else:
+    #     b_shared[pi, pj] = 0.0
 
-    cuda.syncthreads()
+    # cuda.syncthreads()
 
-    tmp = 0.0
+    # tmp = 0.0
 
-    # dot product
-    for k in range(a_shape[-1]):  # number of cols in a, shared dimension
-        tmp += a_shared[k, pi] * b_shared[pj, k]
+    # # dot product
+    # for k in range(a_shape[-1]):  # number of cols in a, shared dimension
+    #     tmp += a_shared[k, pi] * b_shared[pj, k]
 
-    # write
-    if i < out_shape[-2] and j < out_shape[-1]:
+    # # write
+    # if i < out_shape[-2] and j < out_shape[-1]:
+    #     out_index = 0
+    #     for dim in range(len(out_shape)):
+    #         if dim == len(out_shape) - 2:  # row
+    #             idx = i
+    #         elif dim == len(out_shape) - 1:  # col
+    #             idx = j
+    #         else:  # batch
+    #             if out_shape[dim] == 1:  # batch dimensions with possible broadcasting
+    #                 idx = 0
+    #             else:
+    #                 idx = (batch // out_strides[dim]) % out_shape[
+    #                     dim
+    #                 ]  # calculate the pos for this batch dimension
+    #         out_index += idx * out_strides[dim]
+
+    #     # accumulated sum to the output tensor
+    #     out[out_index] = tmp
+    tmp = 0.0  # Accumulator for the output element
+
+    # Calculate the number of tiles needed to cover the K dimension
+    num_tiles = (a_shape[-1] + BLOCK_DIM - 1) // BLOCK_DIM
+
+    for tile in range(num_tiles):
+        # Calculate the current K index
+        k = tile * BLOCK_DIM + cuda.threadIdx.y
+
+        # Calculate linear index for a[i][k]
+        if a_shape[0] > 1:
+            # If batch dimension is not broadcasted
+            a_idx = batch * a_batch_stride + i * a_strides[-2] + k * a_strides[-1]
+        else:
+            # If batch dimension is broadcasted
+            a_idx = i * a_strides[-2] + k * a_strides[-1]
+
+        # Load a[i][k] into shared memory
+        if (i < a_shape[-2]) and (k < a_shape[-1]):
+            a_shared[cuda.threadIdx.x, cuda.threadIdx.y] = a_storage[a_idx]
+        else:
+            a_shared[cuda.threadIdx.x, cuda.threadIdx.y] = 0.0  # Padding
+
+        # Calculate linear index for b[k][j]
+        if b_shape[0] > 1:
+            # If batch dimension is not broadcasted
+            b_idx = batch * b_batch_stride + k * b_strides[-2] + j * b_strides[-1]
+        else:
+            # If batch dimension is broadcasted
+            b_idx = k * b_strides[-2] + j * b_strides[-1]
+
+        # Load b[k][j] into shared memory
+        if (k < b_shape[-2]) and (j < b_shape[-1]):
+            b_shared[cuda.threadIdx.x, cuda.threadIdx.y] = b_storage[b_idx]
+        else:
+            b_shared[cuda.threadIdx.x, cuda.threadIdx.y] = 0.0  # Padding
+
+        # Synchronize to ensure all data is loaded
+        cuda.syncthreads()
+
+        # Perform partial dot product
+        for t in range(BLOCK_DIM):
+            tmp += a_shared[cuda.threadIdx.x, t] * b_shared[t, cuda.threadIdx.y]
+
+        # Synchronize before loading the next tile
+        cuda.syncthreads()
+
+    # Write the result to global memory
+    if (i < out_shape[-2]) and (j < out_shape[-1]):
+        # Calculate the linear index for the output tensor
         out_index = 0
         for dim in range(len(out_shape)):
-            if dim == len(out_shape) - 2:  # row
+            if dim == len(out_shape) - 2:
+                # Second-to-last dimension corresponds to 'i'
                 idx = i
-            elif dim == len(out_shape) - 1:  # col
+            elif dim == len(out_shape) - 1:
+                # Last dimension corresponds to 'j'
                 idx = j
-            else:  # batch
-                if out_shape[dim] == 1:  # batch dimensions with possible broadcasting
+            else:
+                # Handle batch dimensions with possible broadcasting
+                if out_shape[dim] == 1:
+                    # If the dimension is broadcasted, index is 0
                     idx = 0
                 else:
-                    idx = (batch // out_strides[dim]) % out_shape[
-                        dim
-                    ]  # calculate the pos for this batch dimension
+                    # Calculate the batch index based on 'batch' and strides
+                    # Assuming leading batch dimensions
+                    idx = (batch // out_strides[dim]) % out_shape[dim]
+            # Accumulate the linear index
             out_index += idx * out_strides[dim]
 
-        # accumulated sum to the output tensor
+        # Assign the accumulated sum to the output tensor
         out[out_index] = tmp
 
 
