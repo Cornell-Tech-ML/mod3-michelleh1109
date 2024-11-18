@@ -550,14 +550,14 @@ def _tensor_matrix_multiply(
         # sync before loading the next tile
         cuda.syncthreads()
 
-    # calc the pos in out and write the accumulated result to the output tensor
-    if i < out_shape[-2] and j < out_shape[-1]:
-        out_index = cuda.local.array(MAX_DIMS, numba.int32)
-        out_index[0] = batch
-        out_index[1] = i
-        out_index[2] = j
-        pos = index_to_position(out_index, out_strides)
-        out[pos] = tmp
+        # calc the pos in out and write the accumulated result to the output tensor
+        if i < out_shape[-2] and j < out_shape[-1]:
+            out_index = cuda.local.array(MAX_DIMS, numba.int32)
+            out_index[0] = batch
+            out_index[1] = i
+            out_index[2] = j
+            pos = index_to_position(out_index, out_strides)
+            out[pos] = tmp
 
 
 tensor_matrix_multiply = jit(_tensor_matrix_multiply)
