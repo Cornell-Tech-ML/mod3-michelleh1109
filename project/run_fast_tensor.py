@@ -48,11 +48,8 @@ class Linear(minitorch.Module):
     def forward(self, x):   
         batch = x.shape[0]
         input = x.shape[1]
-        return (x.MatMul(x, self.weights.value) + self.bias.value.view(self.out_size))
-
-        # return (self.weights.value.view(1, input, self.out_size)
-        # * x.view(batch, input, 1)
-        # ).sum(1).view(batch, self.out_size) + self.bias.value.view(self.out_size)
+        w = minitorch.tensor(self.weights.value, backend=shared["cuda"])
+        return (x @ w) + self.bias.value.view(self.out_size)
 
 class FastTrain:
     def __init__(self, hidden_layers, backend=FastTensorBackend):
