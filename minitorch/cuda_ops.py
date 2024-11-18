@@ -488,7 +488,7 @@ def _tensor_matrix_multiply(
     # Batch dimension - fixed
     batch = cuda.blockIdx.z
 
-    BLOCK_DIM = 32
+    BLOCK_DIM = 1024
     a_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
     b_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
 
@@ -512,8 +512,8 @@ def _tensor_matrix_multiply(
     for tile in range(ntiles):
         # global index for a and b
         a_row = i
-        a_col = tile*BLOCK_DIM+pj
-        b_row = tile*BLOCK_DIM + pi
+        a_col = tile * BLOCK_DIM + pj
+        b_row = tile * BLOCK_DIM + pi
         b_col = j
 
         # Calculate pos for a[i][j]
@@ -558,5 +558,6 @@ def _tensor_matrix_multiply(
         out_index[2] = j
         pos = index_to_position(out_index, out_strides)
         out[pos] = tmp
+
 
 tensor_matrix_multiply = jit(_tensor_matrix_multiply)
