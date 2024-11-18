@@ -505,59 +505,62 @@ def _tensor_matrix_multiply(
     #    a) Copy into shared memory for a matrix.
     #    b) Copy into shared memory for b matrix
     #    c) Compute the dot produce for position c[i, j]
+    
+    tmp = 0.0  # Accumulator for the output element
 
-    for tile in range(
-        0, a_shape[-1], BLOCK_DIM
-    ):  # number of tiles to cover the inner dimension
-        # calculate the global row and column indices for the tiles
-        a_row = i
-        a_col = tile + pj
-        b_row = tile + pi
-        b_col = j
+    # Calculate the number of tiles needed to cover the K dimension
+    num_tiles = (a_shape[-1] + BLOCK_DIM - 1) // BLOCK_DIM
 
-        # position indices for a and b for storage
-        a_index = (
-            a_row * a_batch_stride[-2] + a_col * a_batch_stride[-1]
-            if a_col < a_shape[-1]
-            else 0
-        )
-        b_index = (
-            b_row * b_batch_stride[-2] + b_col * b_batch_stride[-1]
-            if b_row < b_shape[-2]
-            else 0
-        )
+    for tile in range(num_tiles):
+        k = tile * BLOCK_DIM + cuda.threadIdx.y
+
+        # Calculate linear index for a[i][k]
+        if a_shape[0] > 1:
+            a_index = batch * a_batch_stride + i * a_strides[-2] + k * a_strides[-1]
+        else:
+            a_index = i * a_strides[-2] + k * a_strides[-1]
+
+        # Calculate linear index for b[k][j]
+        if b_shape[0] > 1:
+            b_index = batch * b_batch_stride + k * b_strides[-2] + j * b_strides[-1]
+        else:
+            b_index = k * b_strides[-2] + j * b_strides[-1]
 
         # Load elements from a and b into shared memory
-        a_shared[pi, pj] = a_storage[a_index] if a_col < a_shape[-1] else 0.0
-        b_shared[pi, pj] = b_storage[b_index] if b_row < b_shape[-2] else 0.0
+        if i < a_shape[-2] and k < a_shape[-1]:
+            a_shared[cuda.threadIdx.x, cuda.threadIdx.y] = a_storage[a_index]
+        else:
+            a_shared[cuda.threadIdx.x, cuda.threadIdx.y] = 0.0  # Padding with zero
 
-        # synchronize to ensure all data is loaded into shared memory
+        if k < b_shape[-2] and j < b_shape[-1]:
+            b_shared[cuda.threadIdx.x, cuda.threadIdx.y] = b_storage[b_index]
+        else:
+            b_shared[cuda.threadIdx.x, cuda.threadIdx.y] = 0.0  # Padding with zero
+
+        # Synchronize to ensure all data is loaded into shared memory
         cuda.syncthreads()
 
-        tmp = 0.0  # accumulator for the output element
-        # dot product and accumalate results
-        for k in range(BLOCK_DIM):
-            tmp += a_shared[pi, k] * b_shared[k, pj]
+        # Perform partial dot product for this tile
+        for t in range(BLOCK_DIM):
+            tmp += a_shared[cuda.threadIdx.x, t] * b_shared[t, cuda.threadIdx.y]
 
+        # Synchronize before loading the next tile
         cuda.syncthreads()
 
-    # Calculate the output index
-    # Handle broadcasting for batch dimensions
-    # Compute multi-dimensional index for the output tensor
+    # Compute the output index
     out_index = 0
-    for dim in reversed(range(len(out_shape))):
-        if dim == -2:  # row
+    for dim in range(len(out_shape) - 1, -1, -1):
+        if dim == len(out_shape) - 2:
             idx = i
-        elif dim == -1:  # col
+        elif dim == len(out_shape) - 1:
             idx = j
         else:
-            # batch dimensions, considering broadcasting
+            # Handle batch dimensions with possible broadcasting
             if out_shape[dim] == 1:
                 idx = 0
             else:
-                # calculate the batch index based on strides
-                batch_idx = batch
-                idx = (batch_idx // (out_strides[dim])) % out_shape[dim]
+                # Calculate the batch index based on 'batch' and strides
+                idx = (batch // out_strides[dim]) % out_shape[dim]
         out_index += idx * out_strides[dim]
 
     # Write the accumulated result to the output tensor
