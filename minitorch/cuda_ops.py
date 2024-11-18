@@ -537,12 +537,12 @@ def _tensor_matrix_multiply(
     for k in range(
         a_shape[-1]
     ):  # number of cols in a -> shared dimension between matrix a and b
-        # print("k in col of A/row of B: ", {k})
-        # print("tmp: ", tmp)
-        # print("a_shared[k, pi]:", a_shared[k, pi])
-        # print("b_shared[pj, k]:", b_shared[pj, k])
+        print("k in col of A/row of B: ", {k})
+        print("tmp: ", tmp)
+        print("a_shared[k, pi]:", a_shared[k, pi])
+        print("b_shared[pj, k]:", b_shared[pj, k])
         tmp += a_shared[k, pi] * b_shared[pj, k]
-        # print("new tmp += : ", tmp)
+        print("new tmp += : ", tmp)
 
     # writing result to global memory
     if (
