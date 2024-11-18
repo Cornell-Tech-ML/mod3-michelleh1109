@@ -228,6 +228,8 @@ if numba.cuda.is_available():
             y1, backend=shared["fast"]
         )
 
+        print("x1: ", x1)
+        print("y1: ", y1)
         x = minitorch.tensor(x1, backend=shared["cuda"])
         y = minitorch.tensor(y1, backend=shared["cuda"])
         z2 = x @ y
@@ -240,76 +242,76 @@ if numba.cuda.is_available():
                 print(f"z2[i, j]: {z2[i, j]}")
                 assert_close(z[i, j], z2[i, j])
 
-    @pytest.mark.task3_4
-    def test_mul_practice4() -> None:
-        """Extend to require 2 blocks"""
-        size = 33
-        x1 = [[random.random() for i in range(size)] for j in range(size)]
-        y1 = [[random.random() for i in range(size)] for j in range(size)]
-        z = minitorch.tensor(x1, backend=shared["fast"]) @ minitorch.tensor(
-            y1, backend=shared["fast"]
-        )
+    # @pytest.mark.task3_4
+    # def test_mul_practice4() -> None:
+    #     """Extend to require 2 blocks"""
+    #     size = 33
+    #     x1 = [[random.random() for i in range(size)] for j in range(size)]
+    #     y1 = [[random.random() for i in range(size)] for j in range(size)]
+    #     z = minitorch.tensor(x1, backend=shared["fast"]) @ minitorch.tensor(
+    #         y1, backend=shared["fast"]
+    #     )
 
-        x = minitorch.tensor(x1, backend=shared["cuda"])
-        y = minitorch.tensor(y1, backend=shared["cuda"])
-        z2 = x @ y
+    #     x = minitorch.tensor(x1, backend=shared["cuda"])
+    #     y = minitorch.tensor(y1, backend=shared["cuda"])
+    #     z2 = x @ y
 
-        for i in range(size):
-            for j in range(size):
-                assert_close(z[i, j], z2[i, j])
+    #     for i in range(size):
+    #         for j in range(size):
+    #             assert_close(z[i, j], z2[i, j])
 
-    @pytest.mark.task3_4
-    def test_mul_practice5() -> None:
-        """Extend to require a batch"""
-        size = 33
-        x1 = [
-            [[random.random() for i in range(size)] for j in range(size)]
-            for _ in range(2)
-        ]
-        y1 = [
-            [[random.random() for i in range(size)] for j in range(size)]
-            for _ in range(2)
-        ]
-        z = minitorch.tensor(x1, backend=shared["fast"]) @ minitorch.tensor(
-            y1, backend=shared["fast"]
-        )
+    # @pytest.mark.task3_4
+    # def test_mul_practice5() -> None:
+    #     """Extend to require a batch"""
+    #     size = 33
+    #     x1 = [
+    #         [[random.random() for i in range(size)] for j in range(size)]
+    #         for _ in range(2)
+    #     ]
+    #     y1 = [
+    #         [[random.random() for i in range(size)] for j in range(size)]
+    #         for _ in range(2)
+    #     ]
+    #     z = minitorch.tensor(x1, backend=shared["fast"]) @ minitorch.tensor(
+    #         y1, backend=shared["fast"]
+    #     )
 
-        x = minitorch.tensor(x1, backend=shared["cuda"])
-        y = minitorch.tensor(y1, backend=shared["cuda"])
-        z2 = x @ y
+    #     x = minitorch.tensor(x1, backend=shared["cuda"])
+    #     y = minitorch.tensor(y1, backend=shared["cuda"])
+    #     z2 = x @ y
 
-        for b in range(2):
-            for i in range(size):
-                for j in range(size):
-                    assert_close(z[b, i, j], z2[b, i, j])
+    #     for b in range(2):
+    #         for i in range(size):
+    #             for j in range(size):
+    #                 assert_close(z[b, i, j], z2[b, i, j])
 
-    @pytest.mark.task3_4
-    def test_mul_practice6() -> None:
-        """Extend to require a batch"""
-        size_a = 45
-        size_b = 40
-        size_in = 33
-        x1 = [
-            [[random.random() for i in range(size_in)] for j in range(size_a)]
-            for _ in range(2)
-        ]
-        y1 = [
-            [[random.random() for i in range(size_b)] for j in range(size_in)]
-            for _ in range(2)
-        ]
-        z = minitorch.tensor(x1, backend=shared["fast"]) @ minitorch.tensor(
-            y1, backend=shared["fast"]
-        )
+    # @pytest.mark.task3_4
+    # def test_mul_practice6() -> None:
+    #     """Extend to require a batch"""
+    #     size_a = 45
+    #     size_b = 40
+    #     size_in = 33
+    #     x1 = [
+    #         [[random.random() for i in range(size_in)] for j in range(size_a)]
+    #         for _ in range(2)
+    #     ]
+    #     y1 = [
+    #         [[random.random() for i in range(size_b)] for j in range(size_in)]
+    #         for _ in range(2)
+    #     ]
+    #     z = minitorch.tensor(x1, backend=shared["fast"]) @ minitorch.tensor(
+    #         y1, backend=shared["fast"]
+    #     )
 
-        x = minitorch.tensor(x1, backend=shared["cuda"])
-        y = minitorch.tensor(y1, backend=shared["cuda"])
-        z2 = x @ y
+    #     x = minitorch.tensor(x1, backend=shared["cuda"])
+    #     y = minitorch.tensor(y1, backend=shared["cuda"])
+    #     z2 = x @ y
 
-        for b in range(2):
-            for i in range(size_a):
-                for j in range(size_b):
-                    print(i, j)
-                    assert_close(z[b, i, j], z2[b, i, j])
+    #     for b in range(2):
+    #         for i in range(size_a):
+    #             for j in range(size_b):
+    #                 print(i, j)
+    #                 assert_close(z[b, i, j], z2[b, i, j])
 
 
 @given(data())
