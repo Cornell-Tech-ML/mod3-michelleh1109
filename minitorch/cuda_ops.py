@@ -41,7 +41,7 @@ to_index = device_jit(to_index)
 index_to_position = device_jit(index_to_position)
 broadcast_index = device_jit(broadcast_index)
 
-THREADS_PER_BLOCK = 32
+THREADS_PER_BLOCK = 16 # changed from 32 to 16 to reduce load
 
 
 class CudaOps(TensorOps):
@@ -543,7 +543,7 @@ def _tensor_matrix_multiply(
 
         tmp = 0.0  # init acc for the output element
 
-        # perform partial dot product for this tile
+        # perform dot product for this tile
         for t in range(BLOCK_DIM):
             tmp += a_shared[pi, t] * b_shared[t, pj]
 
