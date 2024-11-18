@@ -488,7 +488,7 @@ def _tensor_matrix_multiply(
     # Batch dimension - fixed
     batch = cuda.blockIdx.z
 
-    BLOCK_DIM = 1024
+    BLOCK_DIM = 32
     a_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
     b_shared = cuda.shared.array((BLOCK_DIM, BLOCK_DIM), numba.float64)
 
@@ -507,57 +507,115 @@ def _tensor_matrix_multiply(
     #    c) Compute the dot produce for position c[i, j]
 
     # Calculate the number of tiles needed to cover the K dimension
-    ntiles = (a_shape[-1] + BLOCK_DIM - 1) // BLOCK_DIM
+    temp = 0.0
 
-    for tile in range(ntiles):
-        # global index for a and b
-        a_row = i
-        a_col = tile * BLOCK_DIM + pj
-        b_row = tile * BLOCK_DIM + pi
-        b_col = j
+    # Number of tiles along the K dimension (shared dimension)
+    K = a_shape[-1]
+    num_tiles = (K + BLOCK_DIM - 1) // BLOCK_DIM
 
-        # Calculate pos for a[i][j]
-        if a_row < a_shape[-2] and a_col < a_shape[-1]:
-            a_ind = cuda.local.array(MAX_DIMS, numba.int32)
-            a_ind[0] = a_batch_stride
-            a_ind[1] = a_row
-            a_ind[2] = a_col
-            a_pos = index_to_position(a_ind, a_strides)
+    # Adjust batch indices for broadcasting
+    a_batch = batch if a_shape[0] > 1 else 0
+    b_batch = batch if b_shape[0] > 1 else 0
+
+    for tile_idx in range(num_tiles):
+        # Global indices for elements in A and B
+        a_i = i
+        a_j = tile_idx * BLOCK_DIM + pj
+
+        b_i = tile_idx * BLOCK_DIM + pi
+        b_j = j
+
+        # Load data into shared memory with boundary checks
+        if a_i < a_shape[-2] and a_j < a_shape[-1]:
+            a_index = cuda.local.array(MAX_DIMS, numba.int32)
+            a_index[0] = a_batch
+            a_index[1] = a_i
+            a_index[2] = a_j
+            a_pos = index_to_position(a_index, a_strides)
             a_shared[pi, pj] = a_storage[a_pos]
         else:
             a_shared[pi, pj] = 0.0
 
-        # Calculate pos for b[i][k]
-        if b_row < b_shape[-2] and b_col < b_shape[-1]:
-            b_ind = cuda.local.array(MAX_DIMS, numba.int32)
-            b_ind[0] = b_batch_stride
-            b_ind[1] = b_row
-            b_ind[2] = b_col
-            b_pos = index_to_position(b_ind, b_strides)
+        if b_i < b_shape[-2] and b_j < b_shape[-1]:
+            b_index = cuda.local.array(MAX_DIMS, numba.int32)
+            b_index[0] = b_batch
+            b_index[1] = b_i
+            b_index[2] = b_j
+            b_pos = index_to_position(b_index, b_strides)
             b_shared[pi, pj] = b_storage[b_pos]
         else:
             b_shared[pi, pj] = 0.0
 
-        # sync to ensure all data is loaded into shared memory
+        # Synchronize to make sure the sub-matrices are loaded
         cuda.syncthreads()
 
-        tmp = 0.0  # init acc for the output element
+        # Compute partial dot product
+        for k in range(BLOCK_DIM):
+            temp += a_shared[pi, k] * b_shared[k, pj]
 
-        # perform dot product for this tile
-        for t in range(BLOCK_DIM):
-            tmp += a_shared[pi, t] * b_shared[t, pj]
-
-        # sync before loading the next tile
+        # Synchronize before loading the next tile
         cuda.syncthreads()
 
-    # calc the pos in out and write the accumulated result to the output tensor
+    # Write the result to global memory if within bounds
     if i < out_shape[-2] and j < out_shape[-1]:
         out_index = cuda.local.array(MAX_DIMS, numba.int32)
         out_index[0] = batch
         out_index[1] = i
         out_index[2] = j
-        pos = index_to_position(out_index, out_strides)
-        out[pos] = tmp
+        out_pos = index_to_position(out_index, out_strides)
+        out[out_pos] = temp
+
+    # ntiles = (a_shape[-1] + BLOCK_DIM - 1) // BLOCK_DIM
+
+    # for tile in range(ntiles):
+    #     # global index for a and b
+    #     a_row = i
+    #     a_col = tile * BLOCK_DIM + pj
+    #     b_row = tile * BLOCK_DIM + pi
+    #     b_col = j
+
+    #     # Calculate pos for a[i][j]
+    #     if a_row < a_shape[-2] and a_col < a_shape[-1]:
+    #         a_ind = cuda.local.array(MAX_DIMS, numba.int32)
+    #         a_ind[0] = a_batch_stride
+    #         a_ind[1] = a_row
+    #         a_ind[2] = a_col
+    #         a_pos = index_to_position(a_ind, a_strides)
+    #         a_shared[pi, pj] = a_storage[a_pos]
+    #     else:
+    #         a_shared[pi, pj] = 0.0
+
+    #     # Calculate pos for b[i][k]
+    #     if b_row < b_shape[-2] and b_col < b_shape[-1]:
+    #         b_ind = cuda.local.array(MAX_DIMS, numba.int32)
+    #         b_ind[0] = b_batch_stride
+    #         b_ind[1] = b_row
+    #         b_ind[2] = b_col
+    #         b_pos = index_to_position(b_ind, b_strides)
+    #         b_shared[pi, pj] = b_storage[b_pos]
+    #     else:
+    #         b_shared[pi, pj] = 0.0
+
+    #     # sync to ensure all data is loaded into shared memory
+    #     cuda.syncthreads()
+
+    #     tmp = 0.0  # init acc for the output element
+
+    #     # perform dot product for this tile
+    #     for t in range(BLOCK_DIM):
+    #         tmp += a_shared[pi, t] * b_shared[t, pj]
+
+    #     # sync before loading the next tile
+    #     cuda.syncthreads()
+
+    # # calc the pos in out and write the accumulated result to the output tensor
+    # if i < out_shape[-2] and j < out_shape[-1]:
+    #     out_index = cuda.local.array(MAX_DIMS, numba.int32)
+    #     out_index[0] = batch
+    #     out_index[1] = i
+    #     out_index[2] = j
+    #     pos = index_to_position(out_index, out_strides)
+    #     out[pos] = tmp
 
 
 tensor_matrix_multiply = jit(_tensor_matrix_multiply)
