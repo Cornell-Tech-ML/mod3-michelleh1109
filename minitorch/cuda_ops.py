@@ -509,6 +509,8 @@ def _tensor_matrix_multiply(
     # Calculate the number of tiles needed to cover the K dimension
     ntiles = (a_shape[-1] + BLOCK_DIM - 1) // BLOCK_DIM
 
+    tmp = 0.0  # init acc for the output element
+
     for tile in range(ntiles):
         # global index for a and b
         a_row = i
@@ -519,7 +521,7 @@ def _tensor_matrix_multiply(
         # Calculate pos for a[i][j]
         if a_row < a_shape[-2] and a_col < a_shape[-1]:
             a_ind = cuda.local.array(MAX_DIMS, numba.int32)
-            a_ind[0] = a_strides[0] if a_shape[0] > 1 else 0
+            a_ind[0] = a_batch_stride
             a_ind[1] = a_row
             a_ind[2] = a_col
             a_pos = index_to_position(a_ind, a_strides)
@@ -530,7 +532,7 @@ def _tensor_matrix_multiply(
         # Calculate pos for b[i][k]
         if b_row < b_shape[-2] and b_col < b_shape[-1]:
             b_ind = cuda.local.array(MAX_DIMS, numba.int32)
-            b_ind[0] = b_strides[0] if b_shape[0] > 1 else 0
+            b_ind[0] = b_batch_stride
             b_ind[1] = b_row
             b_ind[2] = b_col
             b_pos = index_to_position(b_ind, b_strides)
@@ -540,8 +542,6 @@ def _tensor_matrix_multiply(
 
         # sync to ensure all data is loaded into shared memory
         cuda.syncthreads()
-
-        tmp = 0.0  # init acc for the output element
 
         # perform dot product for this tile
         for t in range(BLOCK_DIM):
