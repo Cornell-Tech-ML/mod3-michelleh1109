@@ -35,6 +35,15 @@ The files that will be synced are:
 
 <img src="parallel_script.png" width="50%">
 
-# Task 3.5 Training
+# Task 3.4 Timing Graph
+<img src="timing.png" width="50%">
 
+# Task 3.5 Training
+### Split Training
 <img src="split.png" width="50%">
+
+### xor Training
+<img src="xor.png" width="50%">
+
+###  Training
+<img src="simple.png" width="50%">
