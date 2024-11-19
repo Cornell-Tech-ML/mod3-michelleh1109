@@ -34,3 +34,7 @@ The files that will be synced are:
 # Task 3.1 and 3.2 Diagnostic Script
 
 <img src="parallel_script.png" width="50%">
+
+# Task 3.5 Training
+
+<img src="split.png" width="50%">

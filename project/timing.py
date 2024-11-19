@@ -1,18 +1,3 @@
-Skip to content
- 
-Search Gists
-Search...
-All gists
-Back to GitHub
-@justinchiu
-justinchiu/timing.py
-Last active 2 years ago • Report abuse
-Code
-Revisions
-2
-Clone this repository at &lt;script src=&quot;https://gist.github.com/justinchiu/e153cbfa667ee8212c5fe40e12252c8a.js&quot;&gt;&lt;/script&gt;
-<script src="https://gist.github.com/justinchiu/e153cbfa667ee8212c5fe40e12252c8a.js"></script>
-timing.py
 import random
 from collections import defaultdict
 import minitorch
