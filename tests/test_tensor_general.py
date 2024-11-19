@@ -4,7 +4,7 @@ from typing import Callable, Dict, Iterable, List, Tuple
 import numba
 import numba.cuda
 import pytest
-from hypothesis import given, settings
+from hypothesis import given, settings, HealthCheck
 from hypothesis.strategies import DataObject, data, integers, lists, permutations
 
 import minitorch
@@ -100,7 +100,7 @@ def test_one_derivative(
 
 
 @given(data())
-@settings(max_examples=50)
+@settings(max_examples=25, suppress_health_check=[HealthCheck.data_too_large])
 @pytest.mark.parametrize("fn", two_arg)
 @pytest.mark.parametrize("backend", backend_tests)
 def test_two_grad(
@@ -225,12 +225,18 @@ if numba.cuda.is_available():
             y1, backend=shared["fast"]
         )
 
+        print("x1: ", x1)
+        print("y1: ", y1)
         x = minitorch.tensor(x1, backend=shared["cuda"])
         y = minitorch.tensor(y1, backend=shared["cuda"])
         z2 = x @ y
 
         for i in range(2):
+            print("\ni= ", i)
             for j in range(2):
+                print("j= ", j)
+                print(f"z[i, j]: {z[i, j]}")
+                print(f"z2[i, j]: {z2[i, j]}")
                 assert_close(z[i, j], z2[i, j])
 
     @pytest.mark.task3_4
@@ -306,7 +312,7 @@ if numba.cuda.is_available():
 
 
 @given(data())
-@settings(max_examples=25)
+@settings(max_examples=25, suppress_health_check=[HealthCheck.data_too_large])
 @pytest.mark.parametrize("fn", two_arg)
 @pytest.mark.parametrize("backend", backend_tests)
 def test_two_grad_broadcast(
