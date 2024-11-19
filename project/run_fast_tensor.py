@@ -69,6 +69,7 @@ class FastTrain:
         losses = []
 
         for epoch in range(max_epochs):
+            start = time.time()
             total_loss = 0.0
             c = list(zip(data.X, data.y))
             random.shuffle(c)
@@ -91,14 +92,19 @@ class FastTrain:
                 optim.step()
 
             losses.append(total_loss)
+            end = time.time()
             # Logging
             if epoch % 10 == 0 or epoch == max_epochs:
+                t = end-start
                 X = minitorch.tensor(data.X, backend=self.backend)
                 y = minitorch.tensor(data.y, backend=self.backend)
                 out = self.model.forward(X).view(y.shape[0])
                 y2 = minitorch.tensor(data.y)
                 correct = int(((out.detach() > 0.5) == y2).sum()[0])
                 log_fn(epoch, total_loss, correct, losses)
+                print("time per epoch: ", t)
+
+        
 
 
 if __name__ == "__main__":
@@ -122,8 +128,7 @@ if __name__ == "__main__":
         data = minitorch.datasets["Simple"](PTS)
     elif args.DATASET == "split":
         data = minitorch.datasets["Split"](PTS)
-    elif args.DATASET == "diag":
-        data = minitorch.datasets["Diag"](PTS)
+
 
     HIDDEN = int(args.HIDDEN)
     RATE = args.RATE
