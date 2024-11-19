@@ -39,11 +39,11 @@ The files that will be synced are:
 <img src="timing.png" width="50%">
 
 # Task 3.5 Training
+### Simple Training
+<img src="simple.png" width="50%">
+
 ### Split Training
 <img src="split.png" width="50%">
 
 ### xor Training
 <img src="xor.png" width="50%">
-
-###  Training
-<img src="simple.png" width="50%">
