@@ -12,8 +12,8 @@ if numba.cuda.is_available():
     GPUBackend = minitorch.TensorBackend(minitorch.CudaOps)
 
 
-def default_log_fn(epoch, total_loss, correct, losses):
-    print("Epoch ", epoch, " loss ", total_loss, "correct", correct)
+def default_log_fn(epoch, total_loss, correct, losses, tpm):
+    print("Epoch ", epoch, " loss ", total_loss, "correct", correct, "Epoch Time", tpm)
 
 
 def RParam(*shape, backend):
@@ -102,8 +102,7 @@ class FastTrain:
                 out = self.model.forward(X).view(y.shape[0])
                 y2 = minitorch.tensor(data.y)
                 correct = int(((out.detach() > 0.5) == y2).sum()[0])
-                log_fn(epoch, total_loss, correct, losses)
-                print("time per epoch: ", t)
+                log_fn(epoch, total_loss, correct, losses, t)
 
         
 
