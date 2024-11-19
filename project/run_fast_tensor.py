@@ -46,7 +46,7 @@ class Linear(minitorch.Module):
         self.bias = minitorch.Parameter(s)
         self.out_size = out_size
 
-    def forward(self, x):   
+    def forward(self, x):
         batch = x.shape[0]
         input = x.shape[1]
         return (x @ self.weights.value) + self.bias.value.view(self.out_size)
@@ -104,7 +104,7 @@ class FastTrain:
                 correct = int(((out.detach() > 0.5) == y2).sum()[0])
                 log_fn(epoch, total_loss, correct, losses, t)
 
-        
+
 
 
 if __name__ == "__main__":

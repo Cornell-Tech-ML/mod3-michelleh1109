@@ -30,6 +30,7 @@ Fn = TypeVar("Fn")
 
 
 def njit(fn: Fn, **kwargs: Any) -> Fn:
+    """Njit fn"""
     return _njit(inline="always", **kwargs)(fn)  # type: ignore
 
 
@@ -340,15 +341,15 @@ def _tensor_matrix_multiply(
         None : Fills in `out`
 
     """
-    a_batch_stride = a_strides[0] if a_shape[0] > 1 else 0 
+    a_batch_stride = a_strides[0] if a_shape[0] > 1 else 0
     b_batch_stride = b_strides[0] if b_shape[0] > 1 else 0
-    
-    assert (np.array_equal(a_shape[-1], b_shape[-2]) )
-    
+
+    assert np.array_equal(a_shape[-1], b_shape[-2])
+
     batch_size = out_shape[0] if len(out_shape) == 3 else 1
     M = out_shape[-2]  # Number of rows in output
     N = out_shape[-1]  # Number of columns in output
-    K = a_shape[-1]    # Shared dimension
+    K = a_shape[-1]  # Shared dimension
 
     out_batch_stride = out_strides[0] if len(out_shape) == 3 else 0
 
@@ -379,10 +380,6 @@ def _tensor_matrix_multiply(
 
                 # Assign the computed value to the output storage
                 out[out_idx] = sum_val
-        
-    
-
-
 
 
 tensor_matrix_multiply = njit(_tensor_matrix_multiply, parallel=True)

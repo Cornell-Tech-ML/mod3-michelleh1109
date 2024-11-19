@@ -37,19 +37,31 @@ variable_count = 1
 
 
 class Variable(Protocol):
-    def accumulate_derivative(self, x: Any) -> None: ...
+    def accumulate_derivative(self, x: Any) -> None:
+        """Accumalate derivative"""
+        ...
 
     @property
-    def unique_id(self) -> int: ...
+    def unique_id(self) -> int:
+        """Unique id"""
+        ...
 
-    def is_leaf(self) -> bool: ...
+    def is_leaf(self) -> bool:
+        """Is leaf"""
+        ...
 
-    def is_constant(self) -> bool: ...
+    def is_constant(self) -> bool:
+        """Is constant"""
+        ...
 
     @property
-    def parents(self) -> Iterable["Variable"]: ...
+    def parents(self) -> Iterable["Variable"]:
+        """Parents"""
+        ...
 
-    def chain_rule(self, d_output: Any) -> Iterable[Tuple[Variable, Any]]: ...
+    def chain_rule(self, d_output: Any) -> Iterable[Tuple[Variable, Any]]:
+        """Chain rule"""
+        ...
 
 
 def topological_sort(variable: Variable) -> Iterable[Variable]:
@@ -87,8 +99,8 @@ def backpropagate(variable: Variable, deriv: Any) -> None:
 
     Args:
     ----
-        variable: The right-most variable
-        deriv  : Its derivative that we want to propagate backward to the leaves.
+    variable: The right-most variable
+    deriv: Its derivative that we want to propagate backward to the leaves.
 
     No return. Should write to its results to the derivative values of each leaf through `accumulate_derivative`.
 
@@ -123,4 +135,5 @@ class Context:
 
     @property
     def saved_tensors(self) -> Tuple[Any, ...]:
+        """Saved tensors property"""
         return self.saved_values

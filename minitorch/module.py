@@ -49,7 +49,7 @@ class Module:
             The name and `Parameter` of each ancestor parameter.
 
         """
-        parameters= {}
+        parameters = {}
 
         for k, v in self._parameters.items():
             parameters[k] = v

@@ -95,9 +95,11 @@ class Tensor:
         self.f = backend
 
     def requires_grad_(self, x: bool) -> None:
+        """Creates new history"""
         self.history = History()
 
     def requires_grad(self) -> bool:
+        """Checks if gradient has history"""
         return self.history is not None
 
     def to_numpy(self) -> npt.NDArray[np.float64]:
@@ -194,6 +196,8 @@ class Tensor:
         # END CODE CHANGE (2021)
 
     def zeros(self, shape: Optional[UserShape] = None) -> Tensor:
+        """Makes tensor of zeros"""
+
         def zero(shape: UserShape) -> Tensor:
             return Tensor.make(
                 [0.0] * int(operators.prod(shape)), shape, backend=self.backend
@@ -239,14 +243,17 @@ class Tensor:
         return self.history is not None and self.history.last_fn is None
 
     def is_constant(self) -> bool:
+        """Checks if constant"""
         return self.history is None
 
     @property
     def parents(self) -> Iterable[Variable]:
+        """Returns parents"""
         assert self.history is not None
         return self.history.inputs
 
     def chain_rule(self, d_output: Any) -> Iterable[Tuple[Variable, Any]]:
+        """Chain rule"""
         h = self.history
         assert h is not None
         assert h.last_fn is not None
@@ -260,6 +267,7 @@ class Tensor:
         ]
 
     def backward(self, grad_output: Optional[Tensor] = None) -> None:
+        """Backward pass and calls on backpropogate"""
         if grad_output is None:
             assert self.shape == (1,), "Must provide grad_output if non-scalar"
             grad_output = Tensor.make([1.0], (1,), backend=self.backend)
@@ -328,24 +336,30 @@ class Tensor:
         return self * b
 
     def all(self, dim: Optional[int] = None) -> Tensor:
+        """All apply"""
         if dim is None:
             return All.apply(self.view(int(self.size)), self._ensure_tensor(0))
         else:
             return All.apply(self, self._ensure_tensor(dim))
 
     def is_close(self, y: Tensor) -> Tensor:
+        """Is close apply"""
         return IsClose.apply(self, y)
 
     def sigmoid(self) -> Tensor:
+        """Sigmoid apply"""
         return Sigmoid.apply(self)
 
     def relu(self) -> Tensor:
+        """ReLu apply"""
         return ReLU.apply(self)
 
     def log(self) -> Tensor:
+        """Log apply"""
         return Log.apply(self)
 
     def exp(self) -> Tensor:
+        """Exp apply"""
         return Exp.apply(self)
 
     def sum(self, dim: Optional[int] = None) -> Tensor:
